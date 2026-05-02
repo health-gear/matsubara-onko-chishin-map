@@ -1662,15 +1662,104 @@ function distStr(la1,lo1,la2,lo2) {
 }
 
 // ================================================================
-// TEXT TO SPEECH
+// TEXT TO SPEECH (VOICEVOX ずんだもん / Web Speech API フォールバック)
 // ================================================================
-function speakText(txt) {
+const VOICEVOX_BASE = 'http://localhost:50021';
+const ZUNDAMON_SPEAKER = 1; // ずんだもん あまあま
+
+async function speakText(txt) {
+  // HTTPS環境(GitHub Pages)ではHTTPのlocalhostへは混在コンテンツでブロックされるため
+  // file:// または http:// のときだけVOICEVOXを試みる
+  const canTryVoicevox = ['file:', 'http:'].includes(window.location.protocol);
+
+  if (canTryVoicevox) {
+    try {
+      // 1. audio_query 取得
+      const qRes = await fetch(
+        `${VOICEVOX_BASE}/audio_query?text=${encodeURIComponent(txt)}&speaker=${ZUNDAMON_SPEAKER}`,
+        { method: 'POST' }
+      );
+      if (!qRes.ok) throw new Error('audio_query failed');
+      const query = await qRes.json();
+
+      // 小学生向けに少しゆっくり・抑揚強め
+      query.speedScale      = 0.92;
+      query.intonationScale = 1.15;
+      query.volumeScale     = 1.0;
+
+      // 2. 音声合成
+      const sRes = await fetch(
+        `${VOICEVOX_BASE}/synthesis?speaker=${ZUNDAMON_SPEAKER}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(query) }
+      );
+      if (!sRes.ok) throw new Error('synthesis failed');
+
+      // 3. 再生
+      const blob = await sRes.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+      notify('🟢 ずんだもん読み上げ中なのだ！');
+      return; // ← 成功したのでフォールバックしない
+
+    } catch (e) {
+      // VOICEVOXが起動していない → Web Speech APIへ
+      console.info('VOICEVOX未起動、ブラウザ音声にフォールバック:', e.message);
+    }
+  }
+
+  // ── Web Speech API（最良の日本語音声を自動選択）──────────────────────
   if (!window.speechSynthesis) { notify('⚠️ 読み上げ非対応のブラウザです'); return; }
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(txt);
-  u.lang='ja-JP'; u.rate=0.85; u.pitch=1.1;
-  speechSynthesis.speak(u);
-  notify('🔊 読み上げ中…');
+
+  // 音声リストが非同期で読み込まれる場合があるため少し待つ
+  const doSpeak = () => {
+    const voices = speechSynthesis.getVoices();
+
+    // 優先順位で日本語音声を探す
+    // 1. iOS の高品質声（Enhanced / Premium）
+    // 2. Google の日本語音声（Android / Chrome）
+    // 3. Microsoft の日本語音声（Windows Edge）
+    // 4. ja-JP なら何でも
+    const priorities = [
+      v => /ja/i.test(v.lang) && /(enhanced|premium)/i.test(v.name),
+      v => /ja/i.test(v.lang) && /google/i.test(v.name),
+      v => /ja/i.test(v.lang) && /microsoft/i.test(v.name),
+      v => /ja/i.test(v.lang) && /(kyoko|o-ren|otoya)/i.test(v.name),
+      v => v.lang === 'ja-JP',
+      v => /^ja/i.test(v.lang),
+    ];
+
+    let best = null;
+    for (const fn of priorities) {
+      best = voices.find(fn);
+      if (best) break;
+    }
+
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang  = 'ja-JP';
+    u.rate  = 0.88;   // 少しゆっくり（子ども向け）
+    u.pitch = 1.05;
+    if (best) u.voice = best;
+
+    speechSynthesis.speak(u);
+    const vname = best ? best.name : 'デフォルト';
+    const isVoicevoxEnv = canTryVoicevox;
+    notify(isVoicevoxEnv
+      ? `🔊 読み上げ中… (${vname})｜VOICEVOXを起動するとずんだもんで読めるのだ！`
+      : `🔊 読み上げ中… (${vname})`
+    );
+  };
+
+  // voices がまだ空の場合（初回）は onvoiceschanged を待つ
+  if (speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    speechSynthesis.onvoiceschanged = () => { doSpeak(); speechSynthesis.onvoiceschanged = null; };
+    // 300ms 待っても来なければそのまま実行（Android など）
+    setTimeout(() => { if (!speechSynthesis.speaking) doSpeak(); }, 300);
+  }
 }
 
 // ================================================================
