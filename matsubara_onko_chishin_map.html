@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>松原市 温故知新AIマップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Hiragino Kaku Gothic Pro', 'ヒラギノ角ゴ Pro W3', 'Meiryo', 'メイリオ', sans-serif;
+  background: #f5f0e8;
+  color: #333;
+}
+
+/* ===== LAYOUT ===== */
+#app { display: flex; flex-direction: column; height: 100vh; }
+#header {
+  background: linear-gradient(135deg, #6B3A1F 0%, #C0561A 60%, #E07830 100%);
+  color: white;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  z-index: 1000;
+  flex-shrink: 0;
+}
+.hdr-left { display: flex; align-items: center; gap: 10px; }
+.hdr-icon { font-size: 30px; line-height: 1; }
+.hdr-titles h1 { font-size: 17px; font-weight: bold; letter-spacing: 0.5px; }
+.hdr-titles p  { font-size: 10px; opacity: 0.85; margin-top: 1px; }
+#main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  width: 290px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.12);
+  z-index: 100;
+  flex-shrink: 0;
+}
+.tab-bar {
+  display: flex;
+  background: #faf6f0;
+  border-bottom: 2px solid #C0561A;
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  padding: 9px 2px 7px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  color: #888;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all .2s;
+  border-top: 3px solid transparent;
+}
+.tab-btn span.ti { font-size: 18px; }
+.tab-btn.active { background: #fff; color: #C0561A; font-weight: bold; border-top-color: #C0561A; }
+.tab-panel { display: none; flex: 1; overflow-y: auto; padding: 12px 10px; }
+.tab-panel.active { display: block; }
+
+/* ===== MAP ===== */
+#map-wrap { flex: 1; position: relative; min-width: 0; }
+#map { width: 100%; height: 100%; }
+.map-fab {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 500;
+}
+.map-fab.top { top: 10px; }
+.fab-btn {
+  width: 42px; height: 42px;
+  background: white;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  transition: all .2s;
+}
+.fab-btn:hover { border-color: #C0561A; background: #fff8f2; }
+
+/* ===== SEARCH / FILTER ===== */
+.s-box { display: flex; gap: 6px; margin-bottom: 10px; }
+.s-box input {
+  flex: 1; padding: 8px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 20px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+.s-box input:focus { border-color: #C0561A; }
+.f-section { margin-bottom: 10px; }
+.f-label { font-size: 10px; color: #aaa; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1.5px solid #C0561A;
+  background: white;
+  color: #C0561A;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.chip.active, .chip:hover { background: #C0561A; color: white; }
+
+/* ===== SITE LIST ===== */
+#nearby-banner {
+  display: none;
+  background: #e3f0ff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #1565C0;
+  margin-bottom: 8px;
+}
+.site-list { display: flex; flex-direction: column; gap: 7px; }
+.site-card {
+  background: #faf8f4;
+  border: 1.5px solid #ede5d8;
+  border-radius: 10px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.site-card:hover { background: #f2e8d8; border-color: #C0561A; }
+.site-card.visited { opacity: .55; }
+.k-badge {
+  width: 34px; height: 34px;
+  background: #8B3A1A;
+  color: white;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: bold;
+  flex-shrink: 0;
+}
+.s-info h3 { font-size: 13px; font-weight: bold; color: #222; }
+.s-school {
+  display: inline-block;
+  font-size: 10px;
+  background: #e8f5e8;
+  color: #3a7a3a;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-top: 2px;
+}
+.s-dist { font-size: 10px; color: #999; margin-top: 1px; }
+.v-badge { font-size: 18px; margin-left: auto; flex-shrink: 0; }
+
+/* ===== STAMP RALLY ===== */
+.stamp-hdr { text-align: center; margin-bottom: 10px; }
+.stamp-hdr h2 { font-size: 16px; color: #8B3A1A; }
+.stamp-hdr p { font-size: 11px; color: #888; margin-top: 3px; }
+.prog-bar {
+  height: 12px; background: #eee;
+  border-radius: 6px; overflow: hidden; margin: 6px 0 3px;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C0561A, #F08030);
+  border-radius: 6px;
+  transition: width .6s ease;
+}
+.prog-text { font-size: 11px; color: #888; text-align: center; margin-bottom: 12px; }
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.stamp-item {
+  aspect-ratio: 1;
+  background: #faf8f4;
+  border: 2px solid #e0d5c8;
+  border-radius: 9px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s;
+  padding: 2px; overflow: hidden;
+}
+.stamp-item.stamped { background: #fff3e0; border-color: #C0561A; }
+.stamp-item:hover { border-color: #C0561A; }
+.st-letter { font-size: 16px; font-weight: bold; color: #8B3A1A; line-height: 1; }
+.st-icon   { font-size: 18px; }
+.st-name   { font-size: 7.5px; color: #666; text-align: center; line-height: 1.2; margin-top: 1px; }
+
+/* ===== RESEARCH ===== */
+.res-hdr { text-align: center; margin-bottom: 10px; }
+.res-hdr h2 { font-size: 16px; color: #8B3A1A; }
+.res-hdr p { font-size: 11px; color: #888; margin-top: 3px; }
+.res-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.res-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px;
+  background: #faf8f4; border-radius: 8px;
+  cursor: pointer;
+}
+.res-item input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #C0561A; }
+.res-item label { font-size: 12px; cursor: pointer; line-height: 1.3; }
+.gen-btn {
+  width: 100%; padding: 12px;
+  background: #C0561A;
+  color: white; border: none;
+  border-radius: 10px; font-size: 14px;
+  cursor: pointer; font-weight: bold;
+  transition: background .2s; font-family: inherit;
+}
+.gen-btn:hover { background: #8B3A1A; }
+.sel-btns { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 7px 12px;
+  border-radius: 18px; border: none;
+  cursor: pointer; font-size: 11px; font-weight: bold;
+  transition: all .2s;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: inherit;
+}
+.btn-green  { background: #43A047; color: white; }
+.btn-green:hover  { background: #2E7D32; }
+.btn-blue   { background: #1976D2; color: white; }
+.btn-blue:hover   { background: #0D47A1; }
+.btn-purple { background: #7B1FA2; color: white; }
+.btn-purple:hover { background: #4A148C; }
+.btn-outline { background: white; color: #C0561A; border: 1.5px solid #C0561A; }
+.btn-outline:hover { background: #faf3ec; }
+.btn-red    { background: #E53935; color: white; }
+.btn-red:hover    { background: #B71C1C; }
+
+/* ===== POPUP ===== */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25) !important;
+  padding: 0 !important;
+}
+.leaflet-popup-content { margin: 0 !important; }
+.p-wrap { font-family: 'Hiragino Kaku Gothic Pro','Meiryo',sans-serif; width: 260px; }
+.p-head {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 12px 14px 10px;
+  background: linear-gradient(135deg, #6B3A1F, #C0561A);
+  border-radius: 12px 12px 0 0;
+  color: white;
+}
+.p-karuta {
+  width: 38px; height: 38px;
+  background: rgba(255,255,255,.2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: bold;
+  flex-shrink: 0; border: 1.5px solid rgba(255,255,255,.4);
+}
+.p-title { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+.p-meta  { font-size: 10px; opacity: .85; }
+.p-body  { padding: 10px 14px 12px; }
+.p-yomi {
+  font-size: 11px; color: #8B3A1A; font-style: italic;
+  background: #fff8f0;
+  border-radius: 6px; border-left: 3px solid #C0561A;
+  padding: 5px 8px; margin-bottom: 9px; line-height: 1.5;
+}
+.p-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.p-tab {
+  flex: 1; padding: 5px; font-size: 10px;
+  border: 1.5px solid #ddd; background: #f5f5f5;
+  border-radius: 6px; cursor: pointer;
+  text-align: center; transition: all .2s; font-family: inherit;
+}
+.p-tab.active { background: #C0561A; color: white; border-color: #C0561A; }
+.p-desc { font-size: 12px; line-height: 1.75; color: #444; margin-bottom: 10px; min-height: 60px; }
+.p-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* ===== MODAL ===== */
+.modal-bg {
+  display: none; position: fixed;
+  inset: 0; background: rgba(0,0,0,.55);
+  z-index: 9999; overflow-y: auto;
+  align-items: flex-start; justify-content: center;
+  padding: 20px;
+}
+.modal-bg.open { display: flex; }
+.modal-box {
+  background: white; border-radius: 14px;
+  padding: 28px 24px; max-width: 640px; width: 100%;
+  margin: auto;
+}
+.modal-box h1 { text-align: center; color: #8B3A1A; margin-bottom: 4px; font-size: 20px; }
+.modal-sub { text-align: center; font-size: 12px; color: #888; margin-bottom: 20px; }
+.cl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cl-table th { background: #8B3A1A; color: white; padding: 7px 8px; }
+.cl-table td { border: 1px solid #ddd; padding: 7px 9px; vertical-align: top; }
+.cl-table tr:nth-child(even) td { background: #faf8f4; }
+.cl-table .hint-row td { font-size: 11px; color: #666; background: #fff8f0; padding: 5px 9px; }
+.fill-line {
+  border-bottom: 1px solid #ccc;
+  margin: 5px 0; height: 22px;
+}
+.note-box {
+  border: 1px solid #ddd; border-radius: 8px;
+  padding: 12px; background: #faf8f4; margin-top: 16px;
+  font-size: 12px;
+}
+.note-box h3 { color: #8B3A1A; margin-bottom: 8px; font-size: 13px; }
+.modal-ftr { text-align: center; font-size: 10px; color: #bbb; margin-top: 14px; }
+.modal-acts { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+
+/* ===== KIDS MODE ===== */
+body.kids-mode .p-desc   { font-size: 14px !important; }
+body.kids-mode .s-info h3{ font-size: 14px !important; }
+body.kids-mode .chip     { font-size: 12px !important; }
+
+/* ===== MODE TOGGLE BUTTON ===== */
+.mode-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.35);
+  border-radius: 20px; padding: 5px 10px;
+  cursor: pointer; color: white;
+  font-size: 11px; font-family: inherit;
+  transition: background .2s;
+}
+.mode-btn:hover { background: rgba(255,255,255,.25); }
+.mode-btn .sw {
+  width: 30px; height: 16px;
+  background: rgba(255,255,255,.3);
+  border-radius: 8px; position: relative;
+  transition: background .3s;
+}
+.mode-btn .sw::after {
+  content: ''; width: 12px; height: 12px;
+  background: white; border-radius: 50%;
+  position: absolute; top: 2px; left: 2px;
+  transition: left .3s;
+}
+.mode-btn.on .sw { background: #FFD700; }
+.mode-btn.on .sw::after { left: 16px; }
+
+/* ===== NOTIFICATION ===== */
+#notif {
+  position: fixed; top: 68px; left: 50%;
+  transform: translateX(-50%);
+  background: #333; color: white;
+  padding: 9px 20px; border-radius: 20px;
+  font-size: 13px; z-index: 8000;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s; white-space: nowrap;
+}
+#notif.show { opacity: 1; }
+
+/* ===== LOADING ===== */
+#loading {
+  position: fixed; inset: 0;
+  background: linear-gradient(135deg, #6B3A1F, #C0561A);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 99999; flex-direction: column; gap: 18px;
+}
+.spin {
+  width: 48px; height: 48px;
+  border: 5px solid rgba(255,255,255,.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== INFO TAB ===== */
+.info-card {
+  background: #faf8f4; border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 10px;
+  font-size: 12px; color: #555; line-height: 1.75;
+}
+.info-card h3 { color: #8B3A1A; font-size: 13px; margin-bottom: 6px; }
+.setting-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; padding: 5px 0; cursor: pointer;
+}
+.setting-row input { width: 15px; height: 15px; accent-color: #C0561A; cursor: pointer; }
+
+/* ===== MOBILE ===== */
+@media (max-width: 640px) {
+  #sidebar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    width: 100%; height: 44vh; z-index: 200;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.15);
+  }
+  #map-wrap { height: 56vh; }
+  #main { flex-direction: column; }
+  .hdr-titles h1 { font-size: 15px; }
+  .mode-btn span:last-child { display: none; }
+}
+
+/* ===== PRINT ===== */
+@media print {
+  #loading, #app { display: none !important; }
+  .modal-bg { display: block !important; position: static !important; background: none !important; padding: 0 !important; overflow: visible !important; }
+  .modal-box { border-radius: 0 !important; box-shadow: none !important; max-width: none !important; padding: 20px !important; }
+  .modal-acts { display: none !important; }
+}
+
+/* pulse animation for GPS dot */
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 4px rgba(33,150,243,.35); }
+  50%      { box-shadow: 0 0 0 10px rgba(33,150,243,.1); }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading">
+  <div class="spin"></div>
+  <div style="color:white; font-size:18px; font-weight:bold;">🏯 松原市 温故知新AIマップ</div>
+  <div style="color:rgba(255,255,255,.75); font-size:13px;">まつばらいろはかるた 文化財マップを読み込み中…</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- HEADER -->
+  <div id="header">
+    <div class="hdr-left">
+      <div class="hdr-icon">🏯</div>
+      <div class="hdr-titles">
+        <h1>松原市 温故知新AIマップ</h1>
+        <p>まつばらいろはかるた × 文化財めぐり</p>
+      </div>
+    </div>
+    <button class="mode-btn" id="modeBtn" onclick="toggleKids()">
+      <span>👦</span>
+      <div class="sw"></div>
+      <span>こどもモード</span>
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('explore')"><span class="ti">🗺️</span>探索</button>
+        <button class="tab-btn" onclick="switchTab('stamp')"><span class="ti">🎯</span>スタンプ</button>
+        <button class="tab-btn" onclick="switchTab('research')"><span class="ti">📋</span>自由研究</button>
+        <button class="tab-btn" onclick="switchTab('info')"><span class="ti">ℹ️</span>情報</button>
+      </div>
+
+      <!-- EXPLORE TAB -->
+      <div class="tab-panel active" id="tab-explore">
+        <div class="s-box">
+          <input id="searchIn" type="text" placeholder="文化財を検索…" oninput="applyFilters()">
+        </div>
+        <div class="f-section">
+          <div class="f-label">📍 校区</div>
+          <div class="chips" id="schoolChips">
+            <div class="chip active" data-s="all" onclick="selSchool(this)">すべて</div>
+          </div>
+        </div>
+        <div class="f-section">
+          <div class="f-label">📂 種類</div>
+          <div class="chips">
+            <div class="chip active" data-c="all" onclick="selCat(this)">すべて</div>
+            <div class="chip" data-c="神社" onclick="selCat(this)">⛩️ 神社</div>
+            <div class="chip" data-c="古墳" onclick="selCat(this)">⛰️ 古墳</div>
+            <div class="chip" data-c="寺院" onclick="selCat(this)">🏛️ 寺院</div>
+            <div class="chip" data-c="史跡" onclick="selCat(this)">🗿 史跡</div>
+          </div>
+        </div>
+        <div id="nearby-banner">📡 現在地から近い順に表示</div>
+        <div id="siteList" class="site-list"></div>
+      </div>
+
+      <!-- STAMP TAB -->
+      <div class="tab-panel" id="tab-stamp">
+        <div class="stamp-hdr">
+          <h2>🎯 スタンプラリー</h2>
+          <p>文化財をめぐってスタンプを集めよう！</p>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div class="prog-text" id="progText">0 / 0 か所 達成！</div>
+        <div class="stamp-grid" id="stampGrid"></div>
+        <div style="text-align:center;margin-top:12px;">
+          <button class="btn btn-outline" style="font-size:11px;" onclick="resetStamps()">🔄 スタンプをリセット</button>
+        </div>
+      </div>
+
+      <!-- RESEARCH TAB -->
+      <div class="tab-panel" id="tab-research">
+        <div class="res-hdr">
+          <h2>📋 夏休み自由研究</h2>
+          <p>行きたい文化財を選んで<br>チェックシートを作ろう！</p>
+        </div>
+        <div class="f-section">
+          <div class="f-label">📍 校区で絞り込み</div>
+          <div class="chips" id="resChips">
+            <div class="chip active" data-s="all" onclick="selRes(this)">すべて</div>
+          </div>
+        </div>
+        <div id="resList" class="res-list"></div>
+        <button class="gen-btn" onclick="genChecklist()">📄 チェックシートを作る！</button>
+        <div class="sel-btns">
+          <button class="btn btn-outline" style="font-size:11px;" onclick="selAll()">全選択</button>
+          <button class="btn btn-outline" style="font-size:11px;" onclick="selNone()">全解除</button>
+        </div>
+      </div>
+
+      <!-- INFO TAB -->
+      <div class="tab-panel" id="tab-info">
+        <div style="text-align:center;padding:10px 0 14px;">
+          <div style="font-size:52px;">🏯</div>
+          <h2 style="color:#8B3A1A;font-size:17px;margin-top:8px;">松原市 温故知新AIマップ</h2>
+          <p style="font-size:11px;color:#888;margin-top:5px;">まつばらいろはかるたで地元の歴史をめぐろう！</p>
+        </div>
+        <div class="info-card">
+          <h3>📖 このアプリについて</h3>
+          松原市のオープンデータ「まつばらいろはかるた」を活用した文化財マップです。GPSで現在地を確認しながら、近くの文化財を探索できます。こどもモードでは小学生向けのわかりやすい説明に切り替わります。
+        </div>
+        <div class="info-card">
+          <h3>🗺️ データ・地図について</h3>
+          データ出典：松原市オープンデータカタログ「まつばらいろはかるた」（CC BY 4.0）<br>
+          地図：© OpenStreetMap contributors<br>
+          ※本アプリはサンプルデータを含みます。正式データは松原市公式サイトよりご確認ください。
+        </div>
+        <div class="info-card">
+          <h3>⚙️ 設定</h3>
+          <label class="setting-row">
+            <input type="checkbox" id="chkAutoGps" onchange="onAutoGps()"> 起動時に現在地を自動取得
+          </label>
+          <label class="setting-row">
+            <input type="checkbox" id="chkVisited" checked onchange="onShowVisited()"> 訪問済みスポットも表示
+          </label>
+        </div>
+        <div style="background:#fff3e0;border-radius:10px;padding:10px 12px;font-size:11px;color:#a05010;line-height:1.6;">
+          🌸 このアプリは松原市オープンデータ活用の取り組みとして作成されました。小学生の夏休み自由研究・地域学習にご活用ください。
+        </div>
+      </div>
+    </div><!-- /sidebar -->
+
+    <!-- MAP -->
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div class="map-fab top">
+        <button class="fab-btn" title="現在地を取得" onclick="locateMe()">📍</button>
+        <button class="fab-btn" title="全体を表示"   onclick="fitAll()">🔍</button>
+      </div>
+    </div>
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- NOTIFICATION -->
+<div id="notif"></div>
+
+<!-- CHECKLIST MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script>
+// ================================================================
+// DATA  ── まつばらいろはかるた 文化財データ (サンプル)
+// 出典: 松原市オープンデータ「まつばらいろはかるた」(CC BY 4.0)
+// ※実際のCSVデータ (https://www.city.matsubara.lg.jp/docs/opendataset.html)
+//   をダウンロードして下記配列を差し替えてください。
+// ================================================================
+const DATA = [
+  { id:1, k:"い", yomi:"いにしえの 大和の里に 息づける 布忍の神の いつもやさしく",
+    name:"布忍神社", kana:"ぬのせじんじゃ", school:"布忍", cat:"神社",
+    lat:34.5742, lng:135.5401,
+    desc:"布忍神社は平安時代から続く由緒ある神社です。病気平癒の神様として知られ、境内には樹齢数百年の大木が鎮座しています。松原市を代表する神社の一つで、境内の静けさとともに歴史の重みを感じることができます。",
+    kids:"ぬのせじんじゃは、今から1000年以上前の平安時代から続くとっても古い神社だよ！病気を治してくれる神様がいて、みんながお参りに来る大切な場所なんだ。大きな木も見どころだよ🌳" },
+
+  { id:2, k:"ろ", yomi:"ろくじぞう まちをまもりて たちならぶ 恵我の辻の かがやくすがた",
+    name:"六地蔵（恵我）", kana:"ろくじぞう", school:"恵我", cat:"史跡",
+    lat:34.5718, lng:135.5482,
+    desc:"江戸時代から恵我之荘の辻に立ち続ける六体のお地蔵様。旅の安全と五穀豊穣を祈願して建てられた石仏群で、地域の人々に長く親しまれてきた民間信仰の遺産です。",
+    kids:"むかし旅人の安全を願って作られた6体のお地蔵さまだよ。江戸時代（約300年前）からずーっとこの場所で町を見守っているんだ。やさしい顔に会いに行ってみてね😊" },
+
+  { id:3, k:"は", yomi:"はるかなる 大和川の歴史 せきとめて 人の知恵こそ 川のながれに",
+    name:"大和川付け替え工事跡", kana:"やまとがわつけかえこうじあと", school:"天美南", cat:"史跡",
+    lat:34.5653, lng:135.5508,
+    desc:"1704年（宝永元年）に行われた大和川の流路変更工事の痕跡が残る史跡。大規模な治水工事により大阪南部の農地が守られました。江戸時代の土木技術の高さを伝える重要な歴史遺産です。",
+    kids:"今から約320年前、川の流れを大きく変えるという超大工事があったんだよ！洪水で困っていたみんなを守るため、力を合わせて川の道を変えたんだ。江戸時代のすごい技術だね🌊" },
+
+  { id:4, k:"に", yomi:"にぎわいし 丹比の古道 今もなお ふるさとの道 歩めばしのぶ",
+    name:"竹内街道（丹比道）", kana:"たけのうちかいどう", school:"丹南", cat:"史跡",
+    lat:34.5712, lng:135.5455,
+    desc:"日本最古の官道のひとつとされる竹内街道（丹比道）の松原市区間。聖徳太子の時代（推古天皇612年）に整備されたとも言われ、難波（大阪）と飛鳥（奈良）を結ぶ重要な道でした。",
+    kids:"今から1400年以上前に作られた、日本でいちばん古い道の一つだよ！聖徳太子のころに作られて、昔の人が大阪と奈良の間を行き来していたんだ。この道を歩くと歴史を感じられるよ👟" },
+
+  { id:5, k:"ほ", yomi:"ほとほとと 古の塚に 積む歴史 三宅の里の 大塚古墳",
+    name:"三宅大塚古墳", kana:"みやけおおつかこふん", school:"三宅", cat:"古墳",
+    lat:34.5638, lng:135.5505,
+    desc:"三宅地区に残る前方後円墳。古墳時代中期（5世紀頃）に造られたとされ、この地域を治めた有力な豪族の墓と推定されています。松原市の古代史を伝える貴重な文化財です。",
+    kids:"今から1500年以上前に作られたお墓だよ！空から見ると鍵穴みたいな形（前方後円墳）をしているんだ。むかしの偉い人が眠っていて、松原市の大切な宝だよ⛰️" },
+
+  { id:6, k:"へ", yomi:"へいわの 願いを込めて 今もなお 高見の杜に 神宿りたり",
+    name:"高見神社", kana:"たかみじんじゃ", school:"天美", cat:"神社",
+    lat:34.5801, lng:135.5489,
+    desc:"天美地区に鎮座する高見神社。江戸時代初期建造の本殿は松原市指定文化財に登録されています。地域の氏神として古くから崇敬を集め、豊作と無病息災を祈る祭礼が続いています。",
+    kids:"天美地区を守る神様がいる神社だよ。約400年前の江戸時代に建てられたお社が今でも残っていて、松原市の大切な文化財なんだ。地域のお祭りでもにぎわうよ⛩️" },
+
+  { id:7, k:"と", yomi:"とおい世の 神の御代から 屯倉 里を守りし 宮居あがたに",
+    name:"屯倉神社", kana:"みやけじんじゃ", school:"三宅", cat:"神社",
+    lat:34.5645, lng:135.5517,
+    desc:"古代の屯倉（みやけ・大和朝廷の直轄地）に由来する神社。地名「三宅」の語源ともなっており、この地が古代から朝廷と深い関わりを持っていたことを物語っています。",
+    kids:"むかし天皇様が直接管理していた特別な土地（屯倉）にある神社だよ。「三宅」という地名のもとにもなったんだ。今から1500年以上前の朝廷の歴史がここに残っているよ🏯" },
+
+  { id:8, k:"ち", yomi:"ちいさくも 心おおきな 阿保塚に 歴史の重みを 感じて立てば",
+    name:"阿保親王塚", kana:"あぼしんのうづか", school:"天美", cat:"史跡",
+    lat:34.5812, lng:135.5562,
+    desc:"平安時代初期の皇族・阿保親王の墓と伝えられる塚。阿保親王は「伊勢物語」の主人公・在原業平の父にあたります。松原市内に平安貴族とのゆかりがあることを示す貴重な史跡です。",
+    kids:"「伊勢物語」という有名な物語の主人公・在原業平のお父さんのお墓だよ。平安時代（今から1200年くらい前）の皇族がここに眠っているんだ。昔の貴族の歴史がここにあるよ📜" },
+
+  { id:9, k:"り", yomi:"りんりんと 鐘の音ひびく 真福寺 里に根付きし 仏の慈悲を",
+    name:"真福寺", kana:"しんぷくじ", school:"松原", cat:"寺院",
+    lat:34.5755, lng:135.5431,
+    desc:"鎌倉時代に創建されたと伝わる真福寺。境内には古い石塔や仏像が残り、地域の人々の信仰を長年にわたって支えてきました。松原市中心部に位置する歴史ある寺院です。",
+    kids:"鎌倉時代（今から約800年前）に作られたお寺だよ。境内には古い石塔や仏様がいっぱい！昔の人たちがここでお祈りして心を落ち着けていたんだ。静かな雰囲気を感じてみてね🙏" },
+
+  { id:10, k:"ぬ", yomi:"ぬきいでる 古代のロマン 五軒家 遺跡に眠る むかしの暮らし",
+    name:"五軒家遺跡", kana:"ごけんやいせき", school:"天美南", cat:"史跡",
+    lat:34.5670, lng:135.5535,
+    desc:"弥生時代から古墳時代にかけての大規模な集落遺跡。発掘調査では竪穴式住居跡や多量の土器が出土しており、2000年以上前にこの地に栄えた人々の暮らしを今に伝えています。",
+    kids:"今から2000年くらい前、弥生時代の人たちが住んでいた村のあとだよ！土を掘ると昔のお家の跡や土器が出てくるんだ。タイムカプセルみたいな場所だね🏺" },
+
+  { id:11, k:"る", yomi:"るすいする 里の守り神 柴籬に 古代の香り 漂う朝に",
+    name:"柴籬神社（反正天皇陵伝承地）", kana:"しばがきじんじゃ", school:"松原", cat:"神社",
+    lat:34.5790, lng:135.5389,
+    desc:"第18代・反正天皇の宮跡「柴籬宮」と伝えられる地に鎮座する神社。古代の皇居があったとも伝えられ、松原市の歴史のシンボルとして地域の人々に親しまれています。",
+    kids:"なんと今から1600年以上前、天皇様がここにお城（宮）を作ったんだって！反正天皇の宮殿があった場所に建てられた神社で、松原市の歴史の中心的な場所だよ👑" },
+
+  { id:12, k:"を", yomi:"をみなえし 咲く野の末に 古の 丹比の里の 塚のほとり",
+    name:"瓢塚古墳", kana:"ひさごづかこふん", school:"丹南", cat:"古墳",
+    lat:34.5695, lng:135.5512,
+    desc:"丹南地区に残る古墳。ひさご（瓢箪）のような形をしていることからこの名前がついたとも言われています。古墳時代の豪族の墓と考えられており、周辺の歴史文化を伝える貴重な遺跡です。",
+    kids:"ひょうたんみたいな形をしているから「瓢塚」という名前の古墳だよ。古墳時代（今から1500年くらい前）に作られた偉い人のお墓なんだ。ユニークな形に注目してみてね！" },
+
+  { id:13, k:"わ", yomi:"わが里の 鎮守の杜に 阿麻美こそ 神代の昔 今に伝えり",
+    name:"阿麻美許曾神社", kana:"あまみこそじんじゃ", school:"天美", cat:"神社",
+    lat:34.5875, lng:135.5548,
+    desc:"「天美」の地名の由来とも伝えられる古社。平安時代に編纂された「延喜式」の神名帳にも記載される由緒ある神社で、天美地区の氏神として今も崇敬を集めています。",
+    kids:"「天美」という地名のもとになったと言われている神社だよ！今から1000年以上前の本にも名前が書いてある、とっても由緒ある神社。天美地区のみんなを守ってくれているよ✨" },
+
+  { id:14, k:"か", yomi:"かたちよき 前方後円 大塚山 古代のロマン 今に残せり",
+    name:"大塚山古墳", kana:"おおつかやまこふん", school:"恵我南", cat:"古墳",
+    lat:34.5660, lng:135.5530,
+    desc:"恵我南地区に残る松原市最大級の前方後円墳。古墳時代中期の造営と考えられており、周辺一帯を治めた有力な豪族の墓と推定されています。松原市指定文化財。",
+    kids:"松原市で一番大きな古墳のひとつだよ！空から見ると鍵穴みたいな形（前方後円墳）をしていて、今から1500年前の偉い豪族のお墓なんだ。松原市の大切な宝に指定されているよ⛰️" },
+
+  { id:15, k:"よ", yomi:"よい香りの 蓮の花咲く 河合池 古代のロマン 水面にゆらぐ",
+    name:"河合大塚山古墳", kana:"かわいおおつかやまこふん", school:"恵我", cat:"古墳",
+    lat:34.5652, lng:135.5493,
+    desc:"恵我地区に所在する古墳時代の古墳。周辺に古代の水利施設の痕跡が残り、当時の農業と治水技術を伝えています。地域の古代史研究において重要な遺跡とされています。",
+    kids:"古墳のそばに昔の池のあとが残っているよ。古墳時代の偉い人のお墓で、まわりには農業用の水を管理するための池があったんだって。昔の人の知恵が詰まってるね💧" },
+
+  { id:16, k:"た", yomi:"たびびとの 安らかなれと 丹南の 地蔵菩薩は 今日も微笑む",
+    name:"丹南遺跡", kana:"たんなんいせき", school:"丹南", cat:"史跡",
+    lat:34.5709, lng:135.5442,
+    desc:"丹南地区に広がる弥生〜奈良時代にかけての大規模遺跡群。土器や農具・建物跡など多くの遺物が出土しており、この地域が古代から栄えていたことを証明しています。",
+    kids:"弥生時代から奈良時代（今から2000〜1300年前）まで、この辺りには大きな村があったんだよ！土を掘ると昔の土器や農具がザクザク出てくる、宝の山みたいな場所だよ🔍" },
+
+  { id:17, k:"れ", yomi:"れきしある 稲作文化の 発祥地 恵我の荘の 豊かな大地",
+    name:"恵我之荘遺跡", kana:"えがのしょういせき", school:"恵我南", cat:"史跡",
+    lat:34.5725, lng:135.5478,
+    desc:"弥生時代の稲作文化を伝える重要な遺跡。水田跡や農耕具などが発見されており、この地域がはるか昔から米作りの盛んな豊かな土地であったことを物語っています。",
+    kids:"今から2000年くらい前、ここでお米を作っていたんだよ！田んぼのあとや農業の道具が土の中から見つかっているんだ。昔の農家さんも一生懸命働いていたんだね🌾" },
+
+  { id:18, k:"そ", yomi:"そびえたつ 大けやきの 松原の 鎮守の森の 守り神かな",
+    name:"松原神社", kana:"まつばらじんじゃ", school:"松原", cat:"神社",
+    lat:34.5780, lng:135.5408,
+    desc:"松原市の中心に位置する神社。境内には樹齢数百年ともいわれる大けやきがあり、「松原」という地名の由来にも関わるとされています。地域住民の拠り所となってきた歴史ある社です。",
+    kids:"松原市の「松原」という名前に関係があるかもしれない神社だよ。何百年も前からここにある大きなけやきの木が有名！会いに行ってみてね🌳" },
+
+  { id:19, k:"つ", yomi:"つたわりし 文化の香り 天美南 丹南の里の 祭りにぎわい",
+    name:"上田池遺跡", kana:"うえだいけいせき", school:"天美南", cat:"史跡",
+    lat:34.5682, lng:135.5422,
+    desc:"古墳時代に造られた農業用溜池の跡。当時の水利技術の高さを示す遺構で、この地域の古代農業を支えた重要な施設でした。周辺からは土器類も出土しています。",
+    kids:"今から1500年前、田んぼに水を引くために作られた大きな池のあとだよ！昔の人はこんな工夫で農業をしていたんだね。昔のダムみたいなものだよ💧" },
+
+  { id:20, k:"ね", yomi:"ねがいかけ 年の始めに 布忍へと 詣る人々 絶えぬ賑わい",
+    name:"松原市立歴史民俗資料館", kana:"まつばらしりつれきしみんぞくしりょうかん", school:"布忍", cat:"史跡",
+    lat:34.5773, lng:135.5500,
+    desc:"松原市の歴史と民俗を紹介する総合資料館。まつばらいろはかるたのデジタルアーカイブや市内遺跡の出土品、民俗資料を展示しています。松原市の歴史を学ぶには最適な施設です。",
+    kids:"松原市の歴史がぜんぶわかる博物館だよ！まつばらいろはかるたのデジタルアーカイブや、昔の土器や生活道具が見られるんだ。歴史探検の前にまずここに来てみてね！🏛️" },
+
+  { id:21, k:"な", yomi:"なつかしき ふるさとの空 若宮の 氏神さまに 手をあわせれば",
+    name:"若宮八幡神社", kana:"わかみやはちまんじんじゃ", school:"天美西", cat:"神社",
+    lat:34.5822, lng:135.5411,
+    desc:"天美西地区の氏神として崇められてきた若宮八幡神社。境内には江戸時代に奉納された石灯籠や狛犬が残り、地域の歴史と人々の篤い信仰心を今に伝えています。",
+    kids:"天美西地区を守る神様の神社だよ。境内には江戸時代に作られた石の灯籠と、かわいい狛犬が並んでいるよ。昔の人が丁寧に作ったんだね💪" },
+
+  { id:22, k:"ら", yomi:"らんらんと 星の輝く 夜空にも 古墳の丘は 黙して立てり",
+    name:"島泉丸山古墳", kana:"しまいずみまるやまこふん", school:"恵我", cat:"古墳",
+    lat:34.5683, lng:135.5461,
+    desc:"恵我地区に残る古墳時代後期の円墳。周辺には複数の古墳が点在する古墳群を形成しており、この一帯が古代の有力豪族の支配地域であったことを示しています。",
+    kids:"丸い形の古墳（円墳）だよ。この辺りには古墳がいくつも集まっていて、むかしの偉い人たちのお墓が並んでいるんだ。古墳エリアを探検してみよう⛰️" },
+
+  { id:23, k:"む", yomi:"むかしから 民の暮らしを 見守りて 三宅の稲荷 今日も笑顔で",
+    name:"三宅稲荷神社", kana:"みやけいなりじんじゃ", school:"三宅", cat:"神社",
+    lat:34.5628, lng:135.5488,
+    desc:"三宅地区に鎮座するお稲荷さん。農業の神として古くから信仰を集め、五穀豊穣と商売繁盛を祈る参拝者が絶えません。朱塗りの鳥居が印象的な神社です。",
+    kids:"三宅地区のお稲荷さんだよ。赤い鳥居がいくつも並んでいてとてもきれいなんだ！農業の神様で、おいしいお米が取れますようにとお祈りする神社だよ🦊" },
+
+  { id:24, k:"う", yomi:"うかびくる 古代の記憶 天美の 地に息づける 弥生の里",
+    name:"天美遺跡", kana:"あまみいせき", school:"天美西", cat:"史跡",
+    lat:34.5841, lng:135.5438,
+    desc:"天美地区に広がる弥生時代の集落遺跡。発掘調査により土器や木製農具、建物跡などが多数発見され、この地域の弥生文化の豊かさを示す重要な遺跡として知られています。",
+    kids:"弥生時代（今から約2000年前）の人たちが住んでいた村のあとだよ！土器や木の道具がたくさん見つかっていて、昔の人たちの生活がよくわかるんだ🏺" },
+
+  { id:25, k:"ゐ", yomi:"ゐせのたち まつりのにぎわい 阿保の里 桜の枝に 風そよぐかな",
+    name:"阿保神社", kana:"あぼじんじゃ", school:"天美南", cat:"神社",
+    lat:34.5793, lng:135.5571,
+    desc:"阿保の地名に由来する神社。かつて阿保親王や在原業平に縁の深い阿保の里を守る神として祀られており、地域の歴史と文化を今に伝えています。",
+    kids:"阿保親王（在原業平のお父さん）と縁のある地名「阿保」を守る神社だよ。この辺りは平安時代の歌人・在原業平とも関係があるんだって📖" },
+
+  { id:26, k:"の", yomi:"のびやかに 大和の空に 立つ塔の 丹南の里の 寺の鐘かな",
+    name:"丹南遺跡（丹比寺跡）", kana:"たんなんいせきたじひでらあと", school:"丹南", cat:"史跡",
+    lat:34.5700, lng:135.5430,
+    desc:"奈良時代に創建されたとされる丹比寺の跡地。発掘調査で瓦や基壇の遺構が出土しており、かつてこの地域に大きなお寺があったことを物語っています。",
+    kids:"奈良時代（今から約1300年前）に大きなお寺があった場所だよ！そのお寺の跡が地面の中に残っているんだ。昔はここで鐘の音が鳴り響いていたんだろうね🔔" },
+];
+
+// ================================================================
+// STATE
+// ================================================================
+let map, uMarker, uCircle;
+let markers = [];  // { site, marker }
+let fSchool = 'all', fCat = 'all', fSearch = '';
+let rSchool = 'all';
+let visited = JSON.parse(localStorage.getItem('vs26') || '[]');
+let kidsMode = false;
+let uLat = null, uLng = null;
+let showVisited = true;
+
+const schools = [...new Set(DATA.map(d=>d.school))].sort();
+
+// ================================================================
+// INIT
+// ================================================================
+window.addEventListener('load', () => {
+  initMap();
+  buildChips();
+  renderList();
+  renderStamp();
+  renderRes();
+  updProgress();
+
+  if (localStorage.getItem('autoGps') === '1') {
+    document.getElementById('chkAutoGps').checked = true;
+    locateMe();
+  }
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+  }, 900);
+});
+
+// ================================================================
+// MAP
+// ================================================================
+function initMap() {
+  map = L.map('map', { center:[34.575,135.546], zoom:14 });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+  placeMarkers();
+}
+
+const CAT_COLOR = { 神社:'#C0392B', 古墳:'#8B4513', 寺院:'#6A1FA0', 史跡:'#1565C0' };
+const CAT_ICON  = { 神社:'⛩️', 古墳:'⛰️', 寺院:'🏛️', 史跡:'🗿' };
+
+function mkIcon(cat, vis) {
+  const c = vis ? '#9E9E9E' : (CAT_COLOR[cat] || '#C0561A');
+  const i = CAT_ICON[cat] || '📍';
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:34px;height:34px;background:${c};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;"><div style="transform:rotate(45deg);font-size:15px;">${i}</div></div>`,
+    iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-36]
+  });
+}
+
+function placeMarkers() {
+  markers.forEach(m => map.removeLayer(m.marker));
+  markers = [];
+  DATA.forEach(site => {
+    const vis = visited.includes(site.id);
+    if (!showVisited && vis) return;
+    const m = L.marker([site.lat,site.lng], { icon: mkIcon(site.cat,vis) }).addTo(map);
+    m.bindPopup(popupHTML(site), { maxWidth:280 });
+    markers.push({ site, marker:m });
+  });
+}
+
+function popupHTML(s) {
+  const vis = visited.includes(s.id);
+  const d   = kidsMode ? s.kids : s.desc;
+  const dist = uLat ? distStr(uLat,uLng,s.lat,s.lng) : '';
+  return `<div class="p-wrap">
+    <div class="p-head">
+      <div class="p-karuta">${s.k}</div>
+      <div>
+        <div class="p-title">${s.name}</div>
+        <div class="p-meta">📍${s.school}校区 · ${s.cat}${dist?` · 🚶${dist}`:''}</div>
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="p-yomi">🃏 ${s.yomi}</div>
+      <div class="p-tabs">
+        <button class="p-tab active" onclick="ptab(this,'kids',${s.id})">👦こども</button>
+        <button class="p-tab"        onclick="ptab(this,'adult',${s.id})">📖くわしく</button>
+      </div>
+      <div class="p-desc" id="pd${s.id}">${kidsMode ? s.kids : s.kids}</div>
+      <div class="p-btns">
+        <button class="btn btn-purple" onclick="speak(${s.id})">🔊 よみあげ</button>
+        <button class="btn btn-blue"   onclick="nav(${s.lat},${s.lng})">🧭 ナビ</button>
+        <button class="btn ${vis?'btn-outline':'btn-green'}" onclick="toggleVisit(${s.id})">
+          ${vis?'✅ 訪問済み':'🎯 スタンプ！'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function ptab(el, mode, id) {
+  const site = DATA.find(s=>s.id===id);
+  if (!site) return;
+  el.parentNode.querySelectorAll('.p-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pd'+id).textContent = mode==='kids' ? site.kids : site.desc;
+}
+
+function speak(id) {
+  const site = DATA.find(s=>s.id===id);
+  if (!site) return;
+  const txt = kidsMode ? site.kids : site.desc;
+  speakText(site.name + '。' + txt);
+}
+
+// ================================================================
+// FILTERS
+// ================================================================
+function buildChips() {
+  ['schoolChips','resChips'].forEach(cid => {
+    const el = document.getElementById(cid);
+    schools.forEach(sc => {
+      const d = document.createElement('div');
+      d.className='chip'; d.dataset.s=sc; d.textContent=sc;
+      d.onclick = function(){ cid==='schoolChips' ? selSchool(this) : selRes(this); };
+      el.appendChild(d);
+    });
+  });
+}
+
+function selSchool(el) {
+  document.querySelectorAll('#schoolChips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); fSchool=el.dataset.s;
+  applyFilters();
+}
+function selCat(el) {
+  document.querySelectorAll('.chip[data-c]').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); fCat=el.dataset.c;
+  applyFilters();
+}
+function applyFilters() {
+  fSearch = document.getElementById('searchIn').value.toLowerCase();
+  renderList(); syncMarkers();
+}
+
+function filtered() {
+  let r = DATA.filter(s => {
+    const sm = fSchool==='all' || s.school===fSchool;
+    const cm = fCat==='all' || s.cat===fCat;
+    const qm = !fSearch || s.name.includes(fSearch)||s.kana.includes(fSearch)||s.yomi.includes(fSearch);
+    return sm&&cm&&qm;
+  });
+  if (uLat) r.sort((a,b)=>dist(uLat,uLng,a.lat,a.lng)-dist(uLat,uLng,b.lat,b.lng));
+  return r;
+}
+
+function syncMarkers() {
+  const ids = new Set(filtered().map(s=>s.id));
+  markers.forEach(({site,marker}) => {
+    const has = map.hasLayer(marker);
+    if (ids.has(site.id) && !has) marker.addTo(map);
+    if (!ids.has(site.id) && has) map.removeLayer(marker);
+  });
+}
+
+// ================================================================
+// SITE LIST
+// ================================================================
+function renderList() {
+  const list = document.getElementById('siteList');
+  const items = filtered();
+  document.getElementById('nearby-banner').style.display = uLat ? 'block' : 'none';
+  list.innerHTML = items.map(s => {
+    const vis = visited.includes(s.id);
+    const ds  = uLat ? distStr(uLat,uLng,s.lat,s.lng) : '';
+    return `<div class="site-card${vis?' visited':''}" onclick="jumpTo(${s.id})">
+      <div class="k-badge">${s.k}</div>
+      <div class="s-info">
+        <h3>${s.name}</h3>
+        <span class="s-school">📍${s.school}校区 · ${s.cat}</span>
+        ${ds?`<div class="s-dist">🚶 ${ds}</div>`:''}
+      </div>
+      ${vis?'<div class="v-badge">✅</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function jumpTo(id) {
+  const s = DATA.find(x=>x.id===id); if(!s) return;
+  map.setView([s.lat,s.lng],17,{animate:true});
+  const m = markers.find(x=>x.site.id===id);
+  if (m) { m.marker.setPopupContent(popupHTML(s)); m.marker.openPopup(); }
+}
+
+// ================================================================
+// STAMP RALLY
+// ================================================================
+function renderStamp() {
+  document.getElementById('stampGrid').innerHTML = DATA.map(s => {
+    const st = visited.includes(s.id);
+    return `<div class="stamp-item${st?' stamped':''}" onclick="jumpTo(${s.id})" title="${s.name}">
+      <div class="st-letter">${s.k}</div>
+      <div class="st-icon">${st?'✅':'⬜'}</div>
+      <div class="st-name">${s.name.length>5?s.name.slice(0,5)+'…':s.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function updProgress() {
+  const t=DATA.length, v=visited.length, p=t?Math.round(v/t*100):0;
+  document.getElementById('progFill').style.width=p+'%';
+  document.getElementById('progText').textContent=`${v} / ${t} か所 達成！ (${p}%)`;
+}
+
+function toggleVisit(id) {
+  const i = visited.indexOf(id);
+  if (i===-1) { visited.push(id); notify('🎉 スタンプゲット！'); }
+  else { visited.splice(i,1); }
+  localStorage.setItem('vs26', JSON.stringify(visited));
+  renderList(); renderStamp(); updProgress();
+  placeMarkers(); syncMarkers();
+  const s=DATA.find(x=>x.id===id);
+  if(s){ const m=markers.find(x=>x.site.id===id); if(m) m.marker.setPopupContent(popupHTML(s)); }
+}
+
+function resetStamps() {
+  if (!confirm('スタンプをすべてリセットしますか？')) return;
+  visited=[]; localStorage.removeItem('vs26');
+  renderList(); renderStamp(); updProgress(); placeMarkers(); syncMarkers();
+  notify('🔄 リセットしました');
+}
+
+// ================================================================
+// RESEARCH CHECKLIST
+// ================================================================
+function selRes(el) {
+  document.querySelectorAll('#resChips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); rSchool=el.dataset.s; renderRes();
+}
+function renderRes() {
+  const items = DATA.filter(s=>rSchool==='all'||s.school===rSchool);
+  document.getElementById('resList').innerHTML = items.map(s=>`
+    <div class="res-item">
+      <input type="checkbox" id="rc${s.id}" value="${s.id}">
+      <label for="rc${s.id}"><strong>${s.k}：${s.name}</strong> <span style="color:#aaa;font-size:10px;">(${s.school}校区)</span></label>
+    </div>`).join('');
+}
+function selAll()  { document.querySelectorAll('#resList input').forEach(c=>c.checked=true); }
+function selNone() { document.querySelectorAll('#resList input').forEach(c=>c.checked=false); }
+
+function genChecklist() {
+  const sel = [...document.querySelectorAll('#resList input:checked')]
+    .map(c=>DATA.find(s=>s.id==c.value)).filter(Boolean);
+  if (!sel.length) { alert('文化財を選んでください！'); return; }
+  const box = document.getElementById('modalBox');
+  box.innerHTML = `
+    <h1>🏯 夏休み自由研究チェックシート</h1>
+    <p class="modal-sub">まつばらいろはかるた × 松原市 温故知新AIマップ</p>
+    <div style="display:flex;gap:20px;justify-content:center;font-size:13px;color:#555;margin-bottom:16px;flex-wrap:wrap;">
+      <span>なまえ：<span style="display:inline-block;min-width:120px;border-bottom:1px solid #999;">&nbsp;</span></span>
+      <span>学校・クラス：<span style="display:inline-block;min-width:100px;border-bottom:1px solid #999;">&nbsp;</span></span>
+    </div>
+    <table class="cl-table">
+      <tr><th>かるた</th><th>文化財の名前</th><th>校区</th><th>行った日</th><th>かんそう・メモ</th></tr>
+      ${sel.map(s=>`
+        <tr>
+          <td style="text-align:center;font-size:18px;font-weight:bold;color:#8B3A1A;">${s.k}</td>
+          <td><strong>${s.name}</strong><br><span style="font-size:10px;color:#999;">${s.kana}</span></td>
+          <td style="text-align:center;font-size:11px;white-space:nowrap;">${s.school}校区<br><span style="font-size:10px;color:#888;">${s.cat}</span></td>
+          <td style="min-width:65px;font-size:11px;">&nbsp;<br>&nbsp;</td>
+          <td style="min-width:100px;">&nbsp;</td>
+        </tr>
+        <tr class="hint-row">
+          <td colspan="5">💡 ${s.kids}</td>
+        </tr>`).join('')}
+    </table>
+    <div class="note-box">
+      <h3>📝 まとめコーナー</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:4px;">いちばん印象に残った文化財は？</p>
+      <div class="fill-line"></div>
+      <p style="font-size:12px;color:#666;margin:8px 0 4px;">どんなところが印象に残りましたか？</p>
+      <div class="fill-line"></div>
+      <div class="fill-line"></div>
+      <p style="font-size:12px;color:#666;margin:8px 0 4px;">自由研究で調べてみたいことを書こう！</p>
+      <div class="fill-line"></div>
+      <div class="fill-line"></div>
+    </div>
+    <p class="modal-ftr">データ出典：松原市オープンデータ「まつばらいろはかるた」(CC BY 4.0)&ensp;|&ensp;地図：© OpenStreetMap contributors</p>
+    <div class="modal-acts">
+      <button class="btn btn-green" onclick="window.print()">🖨️ 印刷する</button>
+      <button class="btn btn-outline" onclick="closeModal()">✕ 閉じる</button>
+    </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget)closeModal(); });
+
+// ================================================================
+// GPS & NAVIGATION
+// ================================================================
+function locateMe() {
+  if (!navigator.geolocation) { notify('⚠️ このブラウザはGPS非対応です'); return; }
+  notify('📡 現在地を取得中…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    uLat=pos.coords.latitude; uLng=pos.coords.longitude;
+    if (uMarker) map.removeLayer(uMarker);
+    if (uCircle) map.removeLayer(uCircle);
+    uMarker = L.marker([uLat,uLng], { icon: L.divIcon({
+      className:'',
+      html:`<div style="width:18px;height:18px;background:#1976D2;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(25,118,210,.35);animation:pulse 1.5s infinite;"></div>`,
+      iconSize:[18,18], iconAnchor:[9,9]
+    })}).addTo(map);
+    uCircle = L.circle([uLat,uLng], { radius:pos.coords.accuracy, color:'#1976D2', fillColor:'#1976D2', fillOpacity:.08, weight:1 }).addTo(map);
+    map.setView([uLat,uLng],15,{animate:true});
+    notify('✅ 現在地を取得しました！');
+    renderList();
+  }, () => notify('⚠️ 現在地を取得できませんでした'), { enableHighAccuracy:true, timeout:12000 });
+}
+
+function nav(lat,lng) {
+  const url = uLat
+    ? `https://www.google.com/maps/dir/${uLat},${uLng}/${lat},${lng}`
+    : `https://maps.google.com/?q=${lat},${lng}`;
+  window.open(url,'_blank');
+}
+
+function fitAll() {
+  map.fitBounds(L.latLngBounds(DATA.map(s=>[s.lat,s.lng])), { padding:[30,30] });
+}
+
+function dist(la1,lo1,la2,lo2) {
+  const R=6371000, dLa=(la2-la1)*Math.PI/180, dLo=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function distStr(la1,lo1,la2,lo2) {
+  const d=dist(la1,lo1,la2,lo2);
+  return d<1000 ? Math.round(d)+'m' : (d/1000).toFixed(1)+'km';
+}
+
+// ================================================================
+// TEXT TO SPEECH
+// ================================================================
+function speakText(txt) {
+  if (!window.speechSynthesis) { notify('⚠️ 読み上げ非対応のブラウザです'); return; }
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(txt);
+  u.lang='ja-JP'; u.rate=0.85; u.pitch=1.1;
+  speechSynthesis.speak(u);
+  notify('🔊 読み上げ中…');
+}
+
+// ================================================================
+// KIDS MODE
+// ================================================================
+function toggleKids() {
+  kidsMode=!kidsMode;
+  document.getElementById('modeBtn').classList.toggle('on',kidsMode);
+  document.body.classList.toggle('kids-mode',kidsMode);
+  notify(kidsMode?'👦 こどもモードON！':'こどもモードOFF');
+  placeMarkers(); syncMarkers();
+}
+
+// ================================================================
+// UI HELPERS
+// ================================================================
+function switchTab(name) {
+  const names=['explore','stamp','research','info'];
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+
+function notify(msg) {
+  const el=document.getElementById('notif');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function onAutoGps() {
+  const v=document.getElementById('chkAutoGps').checked;
+  localStorage.setItem('autoGps',v?'1':'');
+  if (v) locateMe();
+}
+function onShowVisited() {
+  showVisited=document.getElementById('chkVisited').checked;
+  placeMarkers(); syncMarkers();
+}
+</script>
+</body>
+</html>
