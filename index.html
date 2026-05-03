@@ -3,7 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>松原市 温故知新AIマップ</title>
+<title>松原市 温故知新AIマップ｜まつばらいろはかるた × 文化財めぐり</title>
+<meta name="description" content="松原市のオープンデータ「まつばらいろはかるた」を活用した文化財インタラクティブマップ。47スポットをGPSナビ・スタンプラリー・音声読み上げで探索。小学生の夏休み自由研究にも最適。製作：丸吉孝文（Code for Matsubara）">
+<meta name="author" content="丸吉孝文">
+<meta name="keywords" content="松原市,文化財,まつばらいろはかるた,オープンデータ,シビックテック,Code for Matsubara,丸吉孝文,地域学習,自由研究">
+<meta property="og:title" content="松原市 温故知新AIマップ">
+<meta property="og:description" content="まつばらいろはかるた47首で松原市の文化財をめぐるインタラクティブマップ。GPSナビ・スタンプラリー・音声読み上げ搭載。">
+<meta property="og:url" content="https://health-gear.github.io/matsubara-onko-chishin-map/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<link rel="canonical" href="https://health-gear.github.io/matsubara-onko-chishin-map/">
+
+<!-- JSON-LD 構造化データ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://health-gear.github.io/matsubara-onko-chishin-map/#app",
+      "name": "松原市 温故知新AIマップ",
+      "alternateName": "まつばらいろはかるた 文化財マップ",
+      "url": "https://health-gear.github.io/matsubara-onko-chishin-map/",
+      "description": "松原市のオープンデータ「まつばらいろはかるた」全47首を活用した文化財インタラクティブマップ。GPSナビゲーション・スタンプラリー・音声読み上げ（VOICEVOX / Web Speech API）を搭載。小学生の夏休み自由研究・地域学習向け。",
+      "applicationCategory": "EducationApplication",
+      "operatingSystem": "Web Browser",
+      "inLanguage": "ja",
+      "isAccessibleForFree": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/deed.ja",
+      "dateCreated": "2025-01-01",
+      "keywords": "松原市,文化財,まつばらいろはかるた,オープンデータ,シビックテック,地域学習,自由研究",
+      "about": {
+        "@type": "Place",
+        "name": "松原市",
+        "addressRegion": "大阪府",
+        "addressCountry": "JP"
+      },
+      "author": {
+        "@id": "https://www.maruyoshi-takafumi.com/#person"
+      },
+      "creator": {
+        "@id": "https://www.maruyoshi-takafumi.com/#person"
+      },
+      "publisher": {
+        "@id": "https://www.maruyoshi-takafumi.com/#org"
+      },
+      "isBasedOn": {
+        "@type": "Dataset",
+        "name": "まつばらいろはかるたデジタルアーカイブ",
+        "url": "https://www.city.matsubara.lg.jp/docs/culturalheritage_digitalarchive_karuta.html",
+        "publisher": {
+          "@type": "GovernmentOrganization",
+          "name": "松原市",
+          "url": "https://www.city.matsubara.lg.jp/"
+        },
+        "license": "https://creativecommons.org/licenses/by/4.0/deed.ja"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://www.maruyoshi-takafumi.com/#person",
+      "name": "丸吉孝文",
+      "url": "https://www.maruyoshi-takafumi.com/",
+      "email": "info@health-gear.net",
+      "jobTitle": "シビックテックエンジニア",
+      "description": "大阪府松原市を拠点に活動するシビックテックエンジニア。地域オープンデータを活用したWebアプリ開発に取り組む。",
+      "memberOf": {
+        "@id": "https://www.maruyoshi-takafumi.com/#org"
+      },
+      "sameAs": [
+        "https://www.maruyoshi-takafumi.com/"
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.maruyoshi-takafumi.com/#org",
+      "name": "Code for Matsubara",
+      "description": "松原市を拠点とするシビックテックコミュニティ。地域オープンデータの活用とデジタル公共財の開発を推進。",
+      "founder": {
+        "@id": "https://www.maruyoshi-takafumi.com/#person"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "松原市",
+        "addressRegion": "大阪府",
+        "addressCountry": "JP"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://health-gear.github.io/matsubara-onko-chishin-map/#webpage",
+      "url": "https://health-gear.github.io/matsubara-onko-chishin-map/",
+      "name": "松原市 温故知新AIマップ",
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "Code for Matsubara",
+        "url": "https://health-gear.github.io/"
+      },
+      "about": {
+        "@id": "https://health-gear.github.io/matsubara-onko-chishin-map/#app"
+      },
+      "author": {
+        "@id": "https://www.maruyoshi-takafumi.com/#person"
+      },
+      "license": "https://creativecommons.org/licenses/by/4.0/deed.ja"
+    }
+  ]
+}
+</script>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
