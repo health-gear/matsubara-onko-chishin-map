@@ -1,4 +1,4 @@
-# 📍 松原市 温故知新AIマップ (Matsubara Onko-Chishin AI Map)
+# 📍 松原市 温故知新マップ (Matsubara Onko-Chishin Map)
 
 🌐 **App URL:** [https://health-gear.github.io/matsubara-onko-chishin-map/](https://health-gear.github.io/matsubara-onko-chishin-map/)
 
