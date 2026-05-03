@@ -1318,7 +1318,11 @@ function popupHTML(s) {
     </div>
     <div class="p-body">
       ${imgHTML}
-      <div class="p-desc" id="pd${s.id}">${s.kids}</div>
+      <div class="p-tabs">
+        <button class="p-tab active" onclick="ptab(this,'kids',${s.id})">👦こども</button>
+        <button class="p-tab"        onclick="ptab(this,'adult',${s.id})">📖くわしく</button>
+      </div>
+      <div class="p-desc" id="pd${s.id}" data-mode="kids">${s.kids}</div>
       ${subHTML}
       <div class="p-btns">
         <button class="btn btn-purple" onclick="speak(${s.id})">🔊 よみあげ</button>
@@ -1332,10 +1336,23 @@ function popupHTML(s) {
   </div>`;
 }
 
+function ptab(el, mode, id) {
+  const site = DATA.find(s=>s.id===id);
+  if (!site) return;
+  el.parentNode.querySelectorAll('.p-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const desc = document.getElementById('pd'+id);
+  desc.textContent = mode==='kids' ? site.kids : site.desc;
+  desc.dataset.mode = mode;
+}
+
 function speak(id) {
   const site = DATA.find(s=>s.id===id);
   if (!site) return;
-  speakText(site.name + '。' + site.kids);
+  const descEl = document.getElementById('pd'+id);
+  const mode = descEl ? descEl.dataset.mode : 'kids';
+  const txt = mode === 'kids' ? site.kids : site.desc;
+  speakText(site.name + '。' + txt);
 }
 
 // ================================================================
