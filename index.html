@@ -336,36 +336,6 @@ body {
 .modal-ftr { text-align: center; font-size: 10px; color: #bbb; margin-top: 14px; }
 .modal-acts { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
 
-/* ===== KIDS MODE ===== */
-body.kids-mode .p-desc   { font-size: 15px !important; line-height: 2.0 !important; }
-body.kids-mode .s-info h3{ font-size: 14px !important; }
-body.kids-mode .chip     { font-size: 12px !important; }
-
-/* ===== MODE TOGGLE BUTTON ===== */
-.mode-btn {
-  display: flex; align-items: center; gap: 5px;
-  background: rgba(255,255,255,.15);
-  border: 1.5px solid rgba(255,255,255,.35);
-  border-radius: 20px; padding: 5px 10px;
-  cursor: pointer; color: white;
-  font-size: 11px; font-family: inherit;
-  transition: background .2s;
-}
-.mode-btn:hover { background: rgba(255,255,255,.25); }
-.mode-btn .sw {
-  width: 30px; height: 16px;
-  background: rgba(255,255,255,.3);
-  border-radius: 8px; position: relative;
-  transition: background .3s;
-}
-.mode-btn .sw::after {
-  content: ''; width: 12px; height: 12px;
-  background: white; border-radius: 50%;
-  position: absolute; top: 2px; left: 2px;
-  transition: left .3s;
-}
-.mode-btn.on .sw { background: #FFD700; }
-.mode-btn.on .sw::after { left: 16px; }
 
 /* ===== NOTIFICATION ===== */
 #notif {
@@ -419,7 +389,6 @@ body.kids-mode .chip     { font-size: 12px !important; }
   #map-wrap { height: 56vh; }
   #main { flex-direction: column; }
   .hdr-titles h1 { font-size: 15px; }
-  .mode-btn span:last-child { display: none; }
 }
 
 /* ===== PRINT ===== */
@@ -457,11 +426,6 @@ body.kids-mode .chip     { font-size: 12px !important; }
         <p>まつばらいろはかるた × 文化財めぐり</p>
       </div>
     </div>
-    <button class="mode-btn" id="modeBtn" onclick="toggleKids()">
-      <span>👦</span>
-      <div class="sw"></div>
-      <span>こどもモード</span>
-    </button>
   </div>
 
   <!-- MAIN -->
@@ -543,7 +507,7 @@ body.kids-mode .chip     { font-size: 12px !important; }
         </div>
         <div class="info-card">
           <h3>📖 このアプリについて</h3>
-          松原市のオープンデータ「まつばらいろはかるた」を活用した文化財マップです。GPSで現在地を確認しながら、近くの文化財を探索できます。こどもモードでは小学生向けのわかりやすい説明に切り替わります。
+          松原市のオープンデータ「まつばらいろはかるた」を活用した文化財マップです。GPSで現在地を確認しながら、近くの文化財を探索できます。小学生向けのわかりやすい説明で、文化財をたのしく学べます。
         </div>
         <div class="info-card">
           <h3>🗺️ データ・地図について</h3>
@@ -1264,7 +1228,6 @@ let markers = [];  // { site, marker }
 let fSchool = 'all', fCat = 'all', fSearch = '';
 let rSchool = 'all';
 let visited = JSON.parse(localStorage.getItem('vs_real') || '[]');
-let kidsMode = false;
 let uLat = null, uLng = null;
 let showVisited = true;
 
@@ -1329,7 +1292,7 @@ function placeMarkers() {
 
 function popupHTML(s) {
   const vis  = visited.includes(s.id);
-  const d    = kidsMode ? s.kids : s.desc;
+  const d    = s.kids;
   const dist = uLat ? distStr(uLat,uLng,s.lat,s.lng) : '';
   const imgHTML = (s.img && s.img !== '')
     ? `<div style="margin-bottom:8px;border-radius:8px;overflow:hidden;max-height:120px;">
@@ -1355,11 +1318,7 @@ function popupHTML(s) {
     </div>
     <div class="p-body">
       ${imgHTML}
-      <div class="p-tabs">
-        <button class="p-tab active" onclick="ptab(this,'kids',${s.id})">👦こども</button>
-        <button class="p-tab"        onclick="ptab(this,'adult',${s.id})">📖くわしく</button>
-      </div>
-      <div class="p-desc" id="pd${s.id}">${kidsMode ? s.kids : s.desc}</div>
+      <div class="p-desc" id="pd${s.id}">${s.kids}</div>
       ${subHTML}
       <div class="p-btns">
         <button class="btn btn-purple" onclick="speak(${s.id})">🔊 よみあげ</button>
@@ -1373,23 +1332,10 @@ function popupHTML(s) {
   </div>`;
 }
 
-function ptab(el, mode, id) {
-  const site = DATA.find(s=>s.id===id);
-  if (!site) return;
-  el.parentNode.querySelectorAll('.p-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const desc = document.getElementById('pd'+id);
-  desc.textContent = mode==='kids' ? site.kids : site.desc;
-  desc.dataset.mode = mode;
-}
-
 function speak(id) {
   const site = DATA.find(s=>s.id===id);
   if (!site) return;
-  const descEl = document.getElementById('pd'+id);
-  const mode = descEl ? descEl.dataset.mode : (kidsMode ? 'kids' : 'adult');
-  const txt = mode === 'kids' ? site.kids : site.desc;
-  speakText(site.name + '。' + txt);
+  speakText(site.name + '。' + site.kids);
 }
 
 // ================================================================
@@ -1719,16 +1665,6 @@ async function speakText(txt) {
   }
 }
 
-// ================================================================
-// KIDS MODE
-// ================================================================
-function toggleKids() {
-  kidsMode=!kidsMode;
-  document.getElementById('modeBtn').classList.toggle('on',kidsMode);
-  document.body.classList.toggle('kids-mode',kidsMode);
-  notify(kidsMode?'👦 こどもモードON！':'こどもモードOFF');
-  placeMarkers(); syncMarkers();
-}
 
 // ================================================================
 // UI HELPERS
