@@ -486,6 +486,9 @@ body {
 }
 .setting-row input { width: 15px; height: 15px; accent-color: #C0561A; cursor: pointer; }
 
+/* ドラッグハンドルはモバイルのみ表示 */
+.drag-handle { display: none; }
+
 /* ===== MOBILE ===== */
 @media (max-width: 640px) {
   #sidebar {
@@ -508,14 +511,12 @@ body {
   /* タブボタンをアイコン＋テキストで縦並び */
   .tab-btn { font-size: 10px; padding: 6px 2px 5px; flex-direction: column; display: flex; align-items: center; gap: 1px; }
   .tab-btn span.ti { font-size: 17px; line-height: 1; }
-  /* 展開中はドラッグハンドルを表示 */
-  #sidebar::before {
-    content: '';
+  .drag-handle {
     display: block;
     width: 36px; height: 4px;
-    background: #ddd;
+    background: #ccc;
     border-radius: 2px;
-    margin: 6px auto 0;
+    margin: 7px auto 3px;
     flex-shrink: 0;
   }
 }
@@ -561,6 +562,7 @@ body {
   <div id="main">
     <!-- SIDEBAR -->
     <div id="sidebar">
+      <div class="drag-handle"></div>
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('explore')"><span class="ti">🗺️</span>探索</button>
         <button class="tab-btn" onclick="switchTab('stamp')"><span class="ti">🎯</span>スタンプ</button>
