@@ -1450,10 +1450,8 @@ function popupHTML(s) {
     <div class="p-head">
       <div class="p-cat-icon">${CAT_ICON[s.cat]||'📍'}</div>
       <div>
-        <div class="p-title">
-          ${s.letter ? `<span style="display:inline-block;background:#C0392B;color:white;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:bold;margin-right:4px;">${s.karuta?.toUpperCase()||''} ${s.letter}</span>` : ''}${s.name}
-        </div>
-        ${s.yomiku ? `<div style="font-size:10px;color:#888;font-style:italic;margin-bottom:2px;">${s.yomiku}</div>` : ''}
+        <div class="p-title">${s.name}</div>
+        ${s.yomiku ? `<div style="font-size:11px;color:#29B6D6;font-style:italic;font-weight:bold;margin-bottom:2px;letter-spacing:0.5px;">${s.yomiku}</div>` : ''}
         <div class="p-meta">📍${s.school}校区${dist?` · 🚶${dist}`:''}</div>
         <div style="font-size:10px;margin-top:2px;opacity:.8;">${s.bunrui}</div>
       </div>
